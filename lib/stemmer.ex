@@ -25,12 +25,12 @@ defmodule Stemmer do
     end
   end
 
-  def step_0(word) do
+  defp step_0(word) do
     [head|_] = Regex.split(%r/('s'|'s|')$/, word)
     head
   end
 
-  def step_1a(word) do
+  defp step_1a(word) do
     cond do
       word =~ %r/sses$/ ->
         String.replace(word, %r/sses$/, "ss")
@@ -44,7 +44,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_1b(word, region1, region2) do
+  defp step_1b(word, region1, region2) do
     case is_exceptional?(word) do
       true -> word
       false ->
@@ -76,14 +76,14 @@ defmodule Stemmer do
     end
   end
 
-  def step_1c(word) do
+  defp step_1c(word) do
     case is_exceptional?(word) do
       true -> word
       false -> if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
     end
   end
 
-  def step_2(word, region1) do
+  defp step_2(word, region1) do
     case is_exceptional?(word) do
       true -> word
       false ->
@@ -110,7 +110,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_3(word, region1, region2) do
+  defp step_3(word, region1, region2) do
     case is_exceptional?(word) do
       true -> word
       false ->
@@ -129,7 +129,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_4(word, region2) do
+  defp step_4(word, region2) do
     if is_exceptional?(word), do: word
 
     suffix1 = %r/(ement|able|ance|ence|ible|ment|ant|ate|ent|ism|iti|ive|ize|ous|al|er|ic|ou)$/
@@ -148,7 +148,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_5a(word, region1, region2) do
+  defp step_5a(word, region1, region2) do
     if is_exceptional?(word), do: word
 
     suffix1 = %r/e$/
@@ -177,32 +177,32 @@ defmodule Stemmer do
     String.replace(penultimate, "Y", "y")
   end
 
-  def chop(str) do
+  defp chop(str) do
     String.slice(str, 0, size(str) - 1)
   end
 
-  def vowels do
+  defp vowels do
     "[aeiouy]"
   end
 
-  def consonants do
+  defp consonants do
     "[^aeiou]"
   end
 
-  def is_exceptional?(word) do
+  defp is_exceptional?(word) do
     # Should be checked at each step except steps 0 and 1a
     Enum.member?(%w(inning outing canning herring earring proceed exceed succeed), word)
   end
 
-  def is_short?(word, region1) do
+  defp is_short?(word, region1) do
     region1 >= size(word) && ends_with_short_syllable?(word)
   end
 
-  def ends_with_short_syllable?(word) do
+  defp ends_with_short_syllable?(word) do
     word =~ %r/((^#{vowels}#{consonants})|(#{consonants}#{vowels}[^aeiouywxY]))$/
   end
 
-  def get_regions(word) do
+  defp get_regions(word) do
     region1 = case Regex.run(%r/^(gener|commun|arsen)/, word, return: :index) do
       [{_, len}|_] -> len
       nil ->
@@ -220,7 +220,7 @@ defmodule Stemmer do
     [region1, region2]
   end
 
-  def stem_exception(word) do
+  defp stem_exception(word) do
     case word do
       "skis"   -> "ski"
       "skies"  -> "sky"
@@ -244,7 +244,7 @@ defmodule Stemmer do
     end
   end
 
-  def normalize_suffix_1(suffix) do
+  defp normalize_suffix_1(suffix) do
     case suffix do
       "tional"  -> "tion"
       "enci"    -> "ence"
@@ -273,7 +273,7 @@ defmodule Stemmer do
     end
   end
 
-  def normalize_suffix_2(suffix) do
+  defp normalize_suffix_2(suffix) do
     case suffix do
       "tional"  -> "tion"
       "ational" -> "ate"
@@ -285,7 +285,7 @@ defmodule Stemmer do
     end
   end
 
-  def normalize(word) do
+  defp normalize(word) do
     word |> String.replace(%r/^'/, '')
          |> String.replace(%r/^y/, 'Y')
   end
