@@ -138,9 +138,9 @@ defmodule Stemmer do
     end
   end
 
-  defp step_4(word, region2) do
-    if exceptional?(word), do: word
-
+  defp step_4(word, region2), do: step_4(word, region2, exceptional?(word))
+  defp step_4(word, _, exceptional) when exceptional, do: word
+  defp step_4(word, region2, _) do
     suffix1 = %r/(ement|able|ance|ence|ible|ment|ant|ate|ent|ism|iti|ive|ize|ous|al|er|ic|ou)$/
     suffix2 = %r/(.*[st])ion$/
 
@@ -152,7 +152,7 @@ defmodule Stemmer do
 
     case parts do
       ["", stem, ""] -> if region2 <= size(stem), do: stem, else: word
-      [stem, _suffix, ""] -> if region2 <= size(stem), do: stem, else: word
+      [stem, _, ""] -> if region2 <= size(stem), do: stem, else: word
       nil -> word
     end
   end
