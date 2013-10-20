@@ -7,20 +7,15 @@ defmodule Stemmer do
   Provides the stemmed version of the input word.
   """
   def stem(input_word) do
-    normalize = fn
-      w when size(w) > 2 ->
-        w |> String.replace(%r/^'/, "") |> String.replace(%r/^y/, "Y")
-      w -> w
-    end
-
-    word = to_string(input_word) |> String.strip |> String.downcase |> normalize.()
-
+    word = to_string(input_word) |> String.strip |> String.downcase
     stem word, stem_exception(word)
   end
 
   defp stem(_, exceptional_stem) when exceptional_stem != nil, do: exceptional_stem
   defp stem(word, nil) when size(word) <= 2, do: word
   defp stem(word, nil) do
+    word = word |> String.replace(%r/^'/, "") |> String.replace(%r/^y/, "Y")
+
     [r1, r2] = get_regions(word)
 
     word
