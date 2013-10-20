@@ -13,7 +13,7 @@ defmodule Stemmer do
 
           normalized_word |> step_0
                           |> step_1a
-                          |> step_1b(r1, r2)
+                          |> step_1b(r1)
                           |> step_1c
                           |> step_2(r1)
                           |> step_3(r1, r2)
@@ -35,7 +35,7 @@ defmodule Stemmer do
       word =~ %r/sses$/ ->
         String.replace(word, %r/sses$/, "ss")
       word =~ %r/ie[sd]$/ ->
-        [head|tail] = Regex.split(%r/ie[sd]$/, word)
+        [head|_] = Regex.split(%r/ie[sd]$/, word)
         subst = if size(head) > 1, do: "i", else: "ie"
         String.replace(word, %r/ie[sd]$/, subst)
       word =~ %r/#{vowels}.+s$/ and !(word =~ %r/(us|ss)$/) ->
@@ -44,7 +44,7 @@ defmodule Stemmer do
     end
   end
 
-  defp step_1b(word, region1, region2) do
+  defp step_1b(word, region1) do
     case is_exceptional?(word) do
       true -> word
       false ->
@@ -143,7 +143,7 @@ defmodule Stemmer do
 
     case parts do
       ["", stem, ""] -> if region2 <= size(stem), do: stem, else: word
-      [stem, suffix, ""] -> if region2 <= size(stem), do: stem, else: word
+      [stem, _, ""] -> if region2 <= size(stem), do: stem, else: word
       nil -> word
     end
   end
