@@ -13,7 +13,7 @@ defmodule Stemmer do
       w -> w
     end
 
-    word = to_string(input_word) |> String.downcase |> normalize.()
+    word = to_string(input_word) |> String.strip |> String.downcase |> normalize.()
 
     stem word, stem_exception(word)
   end
