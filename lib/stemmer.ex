@@ -1,36 +1,53 @@
 defmodule Stemmer do
+  @moduledoc """
+  Porter 2 stemmer algorithm.
+  """
+
+  @doc """
+  Provides the stemmed version of the input word.
+  """
   def stem(input_word) do
-    word = to_string(input_word)
-
-    if size(word) <= 2 do
-      word
-    else
-      normalized_word = word |> normalize # |> stem_exception
-
-      case stem_exception(normalized_word) do
-        nil ->
-          [r1, r2] = get_regions(normalized_word)
-
-          normalized_word |> step_0
-                          |> step_1a
-                          |> step_1b(r1, r2)
-                          |> step_1c
-                          |> step_2(r1)
-                          |> step_3(r1, r2)
-                          |> step_4(r2)
-                          |> step_5a(r1, r2)
-
-        x -> x
-      end
+    normalize = fn
+      w when size(w) > 2 ->
+        w |> String.replace(%r/^'/, "") |> String.replace(%r/^y/, "Y")
+      w -> w
     end
+
+    word = to_string(input_word) |> String.downcase |> normalize.()
+
+    stem word, stem_exception(word)
   end
 
-  def step_0(word) do
+  defp stem(_, exceptional_stem) when exceptional_stem != nil do
+    exceptional_stem
+  end
+
+  defp stem(word, _) when size(word) <= 2 do
+    word
+  end
+
+  defp stem(word, _) do
+    [r1, r2] = get_regions(word)
+
+    word
+      |> step_0
+      |> step_1a
+      |> step_1b(r1, r2)
+      |> step_1c
+      |> step_2(r1)
+      |> step_3(r1, r2)
+      |> step_4(r2)
+      |> step_5a(r1, r2)
+  end
+
+  ### algorithm steps
+
+  defp step_0(word) do
     [head|_] = Regex.split(%r/('s'|'s|')$/, word)
     head
   end
 
-  def step_1a(word) do
+  defp step_1a(word) do
     cond do
       word =~ %r/sses$/ ->
         String.replace(word, %r/sses$/, "ss")
@@ -44,7 +61,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_1b(word, region1, region2) do
+  defp step_1b(word, region1, region2) do
     case exceptional?(word) do
       true -> word
       false ->
@@ -76,14 +93,14 @@ defmodule Stemmer do
     end
   end
 
-  def step_1c(word) do
+  defp step_1c(word) do
     case exceptional?(word) do
       true -> word
       false -> if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
     end
   end
 
-  def step_2(word, region1) do
+  defp step_2(word, region1) do
     case exceptional?(word) do
       true -> word
       false ->
@@ -110,7 +127,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_3(word, region1, region2) do
+  defp step_3(word, region1, region2) do
     case exceptional?(word) do
       true -> word
       false ->
@@ -129,7 +146,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_4(word, region2) do
+  defp step_4(word, region2) do
     if exceptional?(word), do: word
 
     suffix1 = %r/(ement|able|ance|ence|ible|ment|ant|ate|ent|ism|iti|ive|ize|ous|al|er|ic|ou)$/
@@ -148,7 +165,7 @@ defmodule Stemmer do
     end
   end
 
-  def step_5a(word, region1, region2) do
+  defp step_5a(word, region1, region2) do
     if exceptional?(word), do: word
 
     suffix1 = %r/e$/
@@ -177,32 +194,26 @@ defmodule Stemmer do
     String.replace(penultimate, "Y", "y")
   end
 
-  def chop(str) do
+  ### utilities
+
+  defp chop(str) do
     String.slice(str, 0, size(str) - 1)
   end
 
-  def vowels do
-    "[aeiouy]"
-  end
-
-  def consonants do
-    "[^aeiou]"
-  end
-
-  def exceptional?(word) do
+  defp exceptional?(word) do
     # Should be checked at each step except steps 0 and 1a
     Enum.member?(%w(inning outing canning herring earring proceed exceed succeed), word)
   end
 
-  def is_short?(word, region1) do
+  defp is_short?(word, region1) do
     region1 >= size(word) && ends_with_short_syllable?(word)
   end
 
-  def ends_with_short_syllable?(word) do
+  defp ends_with_short_syllable?(word) do
     word =~ %r/((^#{vowels}#{consonants})|(#{consonants}#{vowels}[^aeiouywxY]))$/
   end
 
-  def get_regions(word) do
+  defp get_regions(word) do
     region1 = case Regex.run(%r/^(gener|commun|arsen)/, word, return: :index) do
       [{_, len}|_] -> len
       nil ->
@@ -220,7 +231,9 @@ defmodule Stemmer do
     [region1, region2]
   end
 
-  def stem_exception(word) do
+  ### lookups
+
+  defp stem_exception(word) do
     case word do
       "skis"   -> "ski"
       "skies"  -> "sky"
@@ -244,7 +257,7 @@ defmodule Stemmer do
     end
   end
 
-  def normalize_suffix_1(suffix) do
+  defp normalize_suffix_1(suffix) do
     case suffix do
       "tional"  -> "tion"
       "enci"    -> "ence"
@@ -273,7 +286,7 @@ defmodule Stemmer do
     end
   end
 
-  def normalize_suffix_2(suffix) do
+  defp normalize_suffix_2(suffix) do
     case suffix do
       "tional"  -> "tion"
       "ational" -> "ate"
@@ -285,8 +298,11 @@ defmodule Stemmer do
     end
   end
 
-  def normalize(word) do
-    word |> String.replace(%r/^'/, '')
-         |> String.replace(%r/^y/, 'Y')
+  defp vowels do
+    "[aeiouy]"
+  end
+
+  defp consonants do
+    "[^aeiou]"
   end
 end
