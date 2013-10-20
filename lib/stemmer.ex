@@ -1,177 +1,198 @@
 defmodule Stemmer do
+  defrecord Context, region1: nil, region2: nil, str: nil, halted: false
+
   def stem(input_word) do
     word = to_string(input_word)
 
     if size(word) <= 2 do
       word
     else
-      normalized_word = word |> normalize # |> stem_exception
+      context = word |> normalize |> stem_exception
 
-      case stem_exception(normalized_word) do
-        nil ->
-          [r1, r2] = get_regions(normalized_word)
+      case context.halted do
+        false ->
+          context |> step_0
+                  |> step_1a
+                  |> step_1b
+                  |> step_1c
+                  |> step_2
+                  |> step_3
+                  |> step_4
+                  |> step_5a
 
-          normalized_word |> step_0
-                          |> step_1a
-                          |> step_1b(r1)
-                          |> step_1c
-                          |> step_2(r1)
-                          |> step_3(r1, r2)
-                          |> step_4(r2)
-                          |> step_5a(r1, r2)
-
-        x -> x
+        true -> context.str
       end
     end
   end
 
-  defp step_0(word) do
-    [head|_] = Regex.split(%r/('s'|'s|')$/, word)
-    head
+  defp step_0(context) do
+    [head|_] = Regex.split(%r/('s'|'s|')$/, context.str)
+    context.str(head)
   end
 
-  defp step_1a(word) do
+  defp step_1a(context) do
     cond do
-      word =~ %r/sses$/ ->
-        String.replace(word, %r/sses$/, "ss")
-      word =~ %r/ie[sd]$/ ->
-        [head|_] = Regex.split(%r/ie[sd]$/, word)
+      context.str =~ %r/sses$/ ->
+        context.str(String.replace(context.str, %r/sses$/, "ss"))
+      context.str =~ %r/ie[sd]$/ ->
+        [head|_] = Regex.split(%r/ie[sd]$/, context.str)
         subst = if size(head) > 1, do: "i", else: "ie"
-        String.replace(word, %r/ie[sd]$/, subst)
-      word =~ %r/#{vowels}.+s$/ and !(word =~ %r/(us|ss)$/) ->
-        String.replace(word, %r/s$/, "")
-      true -> word
+        context.str(String.replace(context.str, %r/ie[sd]$/, subst))
+      context.str =~ %r/#{vowels}.+s$/ and !(context.str =~ %r/(us|ss)$/) ->
+        context.str(String.replace(context.str, %r/s$/, ""))
+      true -> context
     end
   end
 
-  defp step_1b(word, region1) do
-    case is_exceptional?(word) do
-      true -> word
+  defp step_1b(context) do
+    case is_exceptional?(context.str) do
+      true -> context
       false ->
         cond do
-          word =~ %r/(eed|eedly)$/ ->
-            [{len,_}|_] = Regex.run(%r/(eed|eedly)$/, word, return: :index)
-            [stem,_,_] = Regex.split(%r/(eed|eedly)$/, word)
-            if region1 <= len do
-              stem <> "ee"
+          context.str =~ %r/(eed|eedly)$/ ->
+            [{len,_}|_] = Regex.run(%r/(eed|eedly)$/, context.str, return: :index)
+            [stem,_,_] = Regex.split(%r/(eed|eedly)$/, context.str)
+            if context.region1 <= len do
+              context.str(stem <> "ee")
             else
-              word
+              context.str(context.str)
             end
 
-          word =~ %r/#{vowels}.*(ingly|edly|ing|ed)$/ ->
-            suffix = List.last(Regex.run(%r/#{vowels}.*(ingly|edly|ing|ed)$/, word))
-            stem = String.replace(word, %r/#{suffix}$/, "")
+          context.str =~ %r/#{vowels}.*(ingly|edly|ing|ed)$/ ->
+            suffix = List.last(Regex.run(%r/#{vowels}.*(ingly|edly|ing|ed)$/, context.str))
+            stem = String.replace(context.str, %r/#{suffix}$/, "")
             cond do
               stem =~ %r/(at|bl|iz)$/ ->
-                stem <> "e"
+                context.str(stem <> "e")
               stem =~ %r/(bb|dd|ff|gg|mm|nn|pp|rr|tt)$/ ->
-                chop(stem)
-              is_short?(stem, region1) ->
-                stem <> "e"
-              true -> stem
+                context.str(chop(stem))
+              is_short?(stem, context.region1) ->
+                context.str(stem <> "e")
+              true -> context.str(stem)
             end
 
-          true -> word
+          true -> context
         end
     end
   end
 
-  defp step_1c(word) do
-    case is_exceptional?(word) do
-      true -> word
-      false -> if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
+  defp step_1c(context) do
+    case is_exceptional?(context.str) do
+      true -> context
+      false ->
+        if context.str =~ %r/.+#{consonants}[yY]$/ do
+          context.str(String.replace(context.str, %r/[yY]$/, "i"))
+        else
+          context
+        end
     end
   end
 
-  defp step_2(word, region1) do
-    case is_exceptional?(word) do
-      true -> word
+  defp step_2(context) do
+    case is_exceptional?(context.str) do
+      true -> context
       false ->
         cond do
-          word =~ %r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/ ->
-            [stem,suffix, ""] = Regex.split(%r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/, word)
-            if region1 <= size(stem) do
-              stem <> normalize_suffix_1(suffix)
+          context.str =~ %r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/ ->
+            [stem,suffix, ""] = Regex.split(%r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/, context.str)
+            if context.region1 <= size(stem) do
+              context.str(stem <> normalize_suffix_1(suffix))
             else
-              word
+              context
             end
 
-          word =~ %r/ogi$/ ->
-            [stem,_] = Regex.split(%r/ogi$/, word)
-            if region1 <= size(stem) and stem =~ %r/l$/, do: String.replace(word, %r/ogi$/, 'og'), else: word
+          context.str =~ %r/ogi$/ ->
+            [stem,_] = Regex.split(%r/ogi$/, context.str)
+            if context.region1 <= size(stem) and stem =~ %r/l$/ do
+              context.str(String.replace(context.str, %r/ogi$/, 'og'))
+            else
+              context
+            end
 
-          word =~ %r/(.*[cdeghkmnrt])li$/ ->
-            [_,stem] = Regex.run(%r/(.*[cdeghkmnrt])li$/, word)
-            if region1 <= size(stem), do: String.replace(word, %r/li$/, ""), else: word
+          context.str =~ %r/(.*[cdeghkmnrt])li$/ ->
+            [_,stem] = Regex.run(%r/(.*[cdeghkmnrt])li$/, context.str)
+            if context.region1 <= size(stem) do
+              context.str(String.replace(context.str, %r/li$/, ""))
+            else
+              context
+            end
 
           true ->
-            word
+            context
         end
     end
   end
 
-  defp step_3(word, region1, region2) do
-    case is_exceptional?(word) do
-      true -> word
+  defp step_3(context) do
+    case is_exceptional?(context.str) do
+      true -> context
       false ->
         cond do
-          word =~ %r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/ ->
-            [stem,suffix, ""] = Regex.split(%r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/, word)
-            if region1 <= size(stem), do: stem <> normalize_suffix_2(suffix), else: word
+          context.str =~ %r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/ ->
+            [stem,suffix, ""] = Regex.split(%r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/, context.str)
+            if context.region1 <= size(stem) do
+              context.str(stem <> normalize_suffix_2(suffix))
+            else
+              context
+            end
 
-          word =~ %r/ative$/ ->
-            [stem, _] = Regex.split(%r/ative$/, word)
-            if region2 <= size(stem), do: stem, else: word
+          context.str =~ %r/ative$/ ->
+            [stem, _] = Regex.split(%r/ative$/, context.str)
+            if context.region2 <= size(stem) do
+              context.str(stem)
+            else
+              context
+            end
 
           true ->
-            word
+            context
         end
     end
   end
 
-  defp step_4(word, region2) do
-    if is_exceptional?(word), do: word
+  defp step_4(context) do
+    if is_exceptional?(context.str), do: context
 
     suffix1 = %r/(ement|able|ance|ence|ible|ment|ant|ate|ent|ism|iti|ive|ize|ous|al|er|ic|ou)$/
     suffix2 = %r/(.*[st])ion$/
 
     parts = cond do
-      word =~ suffix1 -> Regex.split(suffix1, word)
-      word =~ suffix2 -> Regex.split(suffix2, word)
+      context.str =~ suffix1 -> Regex.split(suffix1, context.str)
+      context.str =~ suffix2 -> Regex.split(suffix2, context.str)
       true -> nil
     end
 
     case parts do
-      ["", stem, ""] -> if region2 <= size(stem), do: stem, else: word
-      [stem, _, ""] -> if region2 <= size(stem), do: stem, else: word
-      nil -> word
+      ["", stem, ""] -> if context.region2 <= size(stem), do: context.str(stem), else: context
+      [stem, _, ""] -> if context.region2 <= size(stem), do: context.str(stem), else: context
+      nil -> context
     end
   end
 
-  defp step_5a(word, region1, region2) do
-    if is_exceptional?(word), do: word
+  defp step_5a(context) do
+    if is_exceptional?(context.str), do: context
 
     suffix1 = %r/e$/
     suffix2 = %r/(.*l)l$/
 
     penultimate = cond do
-      word =~ suffix1 ->
-        case Regex.split(suffix1, word) do
-          [stem, ""]     -> if region2 <= size(stem) or (region1 <= size(stem) and !is_short?(stem, region1)), do: chop(word), else: word
-          ["", stem, ""] -> if region2 <= size(stem) or (region1 <= size(stem) and !is_short?(stem, region1)), do: chop(word), else: word
-          nil -> word
+      context.str =~ suffix1 ->
+        case Regex.split(suffix1, context.str) do
+          [stem, ""]     -> if context.region2 <= size(stem) or (context.region1 <= size(stem) and !is_short?(stem, context.region1)), do: chop(context.str), else: context.str
+          ["", stem, ""] -> if context.region2 <= size(stem) or (context.region1 <= size(stem) and !is_short?(stem, context.region1)), do: chop(context.str), else: context.str
+          nil -> context.str
         end
 
-      word =~ suffix2 ->
-        case Regex.run(suffix2, word) do
+      context.str =~ suffix2 ->
+        case Regex.run(suffix2, context.str) do
           [_,stem] ->
-            if region2 <= size(stem), do: chop(word), else: word
+            if context.region2 <= size(stem), do: chop(context.str), else: context.str
 
-          nil -> word
+          nil -> context.str
         end
 
       true ->
-        word
+        context.str
     end
 
     String.replace(penultimate, "Y", "y")
@@ -189,9 +210,9 @@ defmodule Stemmer do
     "[^aeiou]"
   end
 
-  defp is_exceptional?(word) do
+  defp is_exceptional?(str) do
     # Should be checked at each step except steps 0 and 1a
-    Enum.member?(%w(inning outing canning herring earring proceed exceed succeed), word)
+    Enum.member?(%w(inning outing canning herring earring proceed exceed succeed), str)
   end
 
   defp is_short?(word, region1) do
@@ -220,28 +241,32 @@ defmodule Stemmer do
     [region1, region2]
   end
 
-  defp stem_exception(word) do
-    case word do
-      "skis"   -> "ski"
-      "skies"  -> "sky"
-      "dying"  -> "die"
-      "lying"  -> "lie"
-      "tying"  -> "tie"
-      "idly"   -> "idl"
-      "gently" -> "gentl"
-      "ugly"   -> "ugli"
-      "early"  -> "earli"
-      "only"   -> "onli"
-      "singly" -> "singl"
-      "sky"    -> "sky"
-      "news"   -> "news"
-      "howe"   -> "howe"
-      "atlas"  -> "atlas"
-      "cosmos" -> "cosmos"
-      "bias"   -> "bias"
-      "andes"  -> "andes"
-      _        -> nil
+  defp stem_exception(c) do
+    case c.str do
+      "skis"   -> halt(c, "ski")
+      "skies"  -> halt(c, "sky")
+      "dying"  -> halt(c, "die")
+      "lying"  -> halt(c, "lie")
+      "tying"  -> halt(c, "tie")
+      "idly"   -> halt(c, "idl")
+      "gently" -> halt(c, "gentl")
+      "ugly"   -> halt(c, "ugli")
+      "early"  -> halt(c, "earli")
+      "only"   -> halt(c, "onli")
+      "singly" -> halt(c, "singl")
+      "sky"    -> halt(c, "sky")
+      "news"   -> halt(c, "news")
+      "howe"   -> halt(c, "howe")
+      "atlas"  -> halt(c, "atlas")
+      "cosmos" -> halt(c, "cosmos")
+      "bias"   -> halt(c, "bias")
+      "andes"  -> halt(c, "andes")
+      _        -> c
     end
+  end
+
+  defp halt(context, word) do
+    context.halted(true).str(word)
   end
 
   defp normalize_suffix_1(suffix) do
@@ -286,7 +311,10 @@ defmodule Stemmer do
   end
 
   defp normalize(word) do
-    word |> String.replace(%r/^'/, '')
-         |> String.replace(%r/^y/, 'Y')
+    stem = word |> String.replace(%r/^'/, '')
+                |> String.replace(%r/^y/, 'Y')
+    [r1, r2] = get_regions(stem)
+
+    Context.new(region1: r1, region2: r2, str: stem, halted: false)
   end
 end
