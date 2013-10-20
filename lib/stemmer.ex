@@ -97,18 +97,20 @@ defmodule Stemmer do
   defp step_2(word, _, exceptional) when exceptional, do: word
   defp step_2(word, region1, _) do
     suffixes = %r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/
+    ogi = %r/ogi$/
+    li_combination = %r/(.*[cdeghkmnrt])li$/
 
     cond do
       word =~ suffixes ->
         [stem, suffix, ""] = Regex.split(suffixes, word)
         if region1 <= size(stem), do: stem <> normalize_suffix_1(suffix), else: word
 
-      word =~ %r/ogi$/ ->
-        [stem, _] = Regex.split(%r/ogi$/, word)
-        if region1 <= size(stem) and stem =~ %r/l$/, do: String.replace(word, %r/ogi$/, 'og'), else: word
+      word =~ ogi ->
+        [stem, _] = Regex.split(ogi, word)
+        if region1 <= size(stem) and stem =~ %r/l$/, do: String.replace(word, ogi, "og"), else: word
 
-      word =~ %r/(.*[cdeghkmnrt])li$/ ->
-        [_, stem] = Regex.run(%r/(.*[cdeghkmnrt])li$/, word)
+      word =~ li_combination ->
+        [_, stem] = Regex.run(li_combination, word)
         if region1 <= size(stem), do: String.replace(word, %r/li$/, ""), else: word
 
       true ->
@@ -116,22 +118,23 @@ defmodule Stemmer do
     end
   end
 
-  defp step_3(word, region1, region2) do
-    case exceptional?(word) do
-      true -> word
-      false ->
-        cond do
-          word =~ %r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/ ->
-            [stem,suffix, ""] = Regex.split(%r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/, word)
-            if region1 <= size(stem), do: stem <> normalize_suffix_2(suffix), else: word
+  defp step_3(word, region1, region2), do: step_3(word, region1, region2, exceptional?(word))
+  defp step_3(word, _, _, exceptional) when exceptional, do: word
+  defp step_3(word, region1, region2, _) do
+    suffixes = %r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/
+    ative = %r/ative$/
 
-          word =~ %r/ative$/ ->
-            [stem, _] = Regex.split(%r/ative$/, word)
-            if region2 <= size(stem), do: stem, else: word
+    cond do
+      word =~ suffixes ->
+        [stem,suffix, ""] = Regex.split(suffixes, word)
+        if region1 <= size(stem), do: stem <> normalize_suffix_2(suffix), else: word
 
-          true ->
-            word
-        end
+      word =~ ative ->
+        [stem, _] = Regex.split(ative, word)
+        if region2 <= size(stem), do: stem, else: word
+
+      true ->
+        word
     end
   end
 
