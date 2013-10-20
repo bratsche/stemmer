@@ -41,13 +41,16 @@ defmodule Stemmer do
   end
 
   defp step_1a(word) do
+    sses_suffix_rule = %r/sses$/
+    ie_suffix_rule = %r/ie[sd]$/
+
     cond do
-      word =~ %r/sses$/ ->
-        String.replace(word, %r/sses$/, "ss")
-      word =~ %r/ie[sd]$/ ->
-        [head | _] = Regex.split(%r/ie[sd]$/, word)
+      word =~ sses_suffix_rule ->
+        String.replace(word, sses_suffix_rule, "ss")
+      word =~ ie_suffix_rule ->
+        [head | _] = Regex.split(ie_suffix_rule, word)
         subst = if size(head) > 1, do: "i", else: "ie"
-        String.replace(word, %r/ie[sd]$/, subst)
+        String.replace(word, ie_suffix_rule, subst)
       word =~ %r/#{vowels}.+s$/ and !(word =~ %r/(us|ss)$/) ->
         String.replace(word, %r/s$/, "")
       true -> word
@@ -57,17 +60,17 @@ defmodule Stemmer do
   defp step_1b(word, region1), do: step_1b(word, region1, exceptional?(word))
   defp step_1b(word, _, exceptional) when exceptional, do: word
   defp step_1b(word, region1, _) do
-    eed_suffix = %r/(eed|eedly)$/
-    ing_or_ed_suffix = %r/#{vowels}.*(ingly|edly|ing|ed)$/
+    eed_suffix_rule = %r/(eed|eedly)$/
+    ing_or_ed_suffix_rule = %r/#{vowels}.*(ingly|edly|ing|ed)$/
 
     cond do
-      word =~ eed_suffix ->
-        [{len, _} | _] = Regex.run(eed_suffix, word, return: :index)
-        [stem, _, _] = Regex.split(eed_suffix, word)
+      word =~ eed_suffix_rule ->
+        [{len, _} | _] = Regex.run(eed_suffix_rule, word, return: :index)
+        [stem, _, _] = Regex.split(eed_suffix_rule, word)
         if region1 <= len, do: stem <> "ee", else: word
 
-      word =~ ing_or_ed_suffix ->
-        suffix = List.last(Regex.run(ing_or_ed_suffix, word))
+      word =~ ing_or_ed_suffix_rule ->
+        suffix = List.last(Regex.run(ing_or_ed_suffix_rule, word))
         stem = String.replace(word, %r/#{suffix}$/, "")
         cond do
           stem =~ %r/(bb|dd|ff|gg|mm|nn|pp|rr|tt)$/ ->
@@ -90,21 +93,21 @@ defmodule Stemmer do
   defp step_2(word, region1), do: step_2(word, region1, exceptional?(word))
   defp step_2(word, _, exceptional) when exceptional, do: word
   defp step_2(word, region1, _) do
-    suffixes = %r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/
-    ogi = %r/ogi$/
-    li_combination = %r/(.*[cdeghkmnrt])li$/
+    multiple_suffix_rule = %r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/
+    ogi_suffix_rule = %r/ogi$/
+    li_suffix_rule = %r/(.*[cdeghkmnrt])li$/
 
     cond do
-      word =~ suffixes ->
-        [stem, suffix, ""] = Regex.split(suffixes, word)
+      word =~ multiple_suffix_rule ->
+        [stem, suffix, ""] = Regex.split(multiple_suffix_rule, word)
         if region1 <= size(stem), do: stem <> normalize_suffix_1(suffix), else: word
 
-      word =~ ogi ->
-        [stem, _] = Regex.split(ogi, word)
-        if region1 <= size(stem) and stem =~ %r/l$/, do: String.replace(word, ogi, "og"), else: word
+      word =~ ogi_suffix_rule ->
+        [stem, _] = Regex.split(ogi_suffix_rule, word)
+        if region1 <= size(stem) and stem =~ %r/l$/, do: String.replace(word, ogi_suffix_rule, "og"), else: word
 
-      word =~ li_combination ->
-        [_, stem] = Regex.run(li_combination, word)
+      word =~ li_suffix_rule ->
+        [_, stem] = Regex.run(li_suffix_rule, word)
         if region1 <= size(stem), do: String.replace(word, %r/li$/, ""), else: word
 
       true ->
@@ -115,16 +118,16 @@ defmodule Stemmer do
   defp step_3(word, region1, region2), do: step_3(word, region1, region2, exceptional?(word))
   defp step_3(word, _, _, exceptional) when exceptional, do: word
   defp step_3(word, region1, region2, _) do
-    suffixes = %r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/
-    ative = %r/ative$/
+    al_ic_ness_ful_suffix_rule = %r/(ational|tional|alize|icate|iciti|ical|ness|ful)$/
+    ative_suffix_rule = %r/ative$/
 
     cond do
-      word =~ suffixes ->
-        [stem,suffix, ""] = Regex.split(suffixes, word)
+      word =~ al_ic_ness_ful_suffix_rule ->
+        [stem,suffix, ""] = Regex.split(al_ic_ness_ful_suffix_rule, word)
         if region1 <= size(stem), do: stem <> normalize_suffix_2(suffix), else: word
 
-      word =~ ative ->
-        [stem, _] = Regex.split(ative, word)
+      word =~ ative_suffix_rule ->
+        [stem, _] = Regex.split(ative_suffix_rule, word)
         if region2 <= size(stem), do: stem, else: word
 
       true ->
@@ -135,12 +138,12 @@ defmodule Stemmer do
   defp step_4(word, region2), do: step_4(word, region2, exceptional?(word))
   defp step_4(word, _, exceptional) when exceptional, do: word
   defp step_4(word, region2, _) do
-    suffix1 = %r/(ement|able|ance|ence|ible|ment|ant|ate|ent|ism|iti|ive|ize|ous|al|er|ic|ou)$/
-    suffix2 = %r/(.*[st])ion$/
+    suffix_list_rule = %r/(ement|able|ance|ence|ible|ment|ant|ate|ent|ism|iti|ive|ize|ous|al|er|ic|ou)$/
+    ion_suffix_rule = %r/(.*[st])ion$/
 
     parts = cond do
-      word =~ suffix1 -> Regex.split(suffix1, word)
-      word =~ suffix2 -> Regex.split(suffix2, word)
+      word =~ suffix_list_rule -> Regex.split(suffix_list_rule, word)
+      word =~ ion_suffix_rule  -> Regex.split(ion_suffix_rule, word)
       true -> nil
     end
 
@@ -154,22 +157,22 @@ defmodule Stemmer do
   defp step_5(word, region1, region2), do: step_5(word, region1, region2, exceptional?(word))
   defp step_5(word, _, _, exceptional) when exceptional, do: word
   defp step_5(word, region1, region2, _) do
-    suffix1 = %r/e$/
-    suffix2 = %r/(.*l)l$/
+    e_suffix_rule = %r/e$/
+    l_suffix_rule = %r/(.*l)l$/
 
     penultimate = cond do
-      word =~ suffix1 ->
-        e_rule = fn(word, stem) ->
+      word =~ e_suffix_rule ->
+        handle_e_rule = fn(word, stem) ->
           if region2 <= size(stem) or (region1 <= size(stem) and !is_short?(stem, region1)), do: chop(word), else: word
         end
-        case Regex.split(suffix1, word) do
-          [stem, ""]     -> e_rule.(word, stem)
-          ["", stem, ""] -> e_rule.(word, stem)
+        case Regex.split(e_suffix_rule, word) do
+          [stem, ""]     -> handle_e_rule.(word, stem)
+          ["", stem, ""] -> handle_e_rule.(word, stem)
           nil            -> word
         end
 
-      word =~ suffix2 ->
-        case Regex.run(suffix2, word) do
+      word =~ l_suffix_rule ->
+        case Regex.run(l_suffix_rule, word) do
           [_, stem] -> if region2 <= size(stem), do: chop(word), else: word
           nil       -> word
         end
