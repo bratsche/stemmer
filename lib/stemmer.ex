@@ -60,35 +60,30 @@ defmodule Stemmer do
     end
   end
 
-  defp step_1b(word, region1) do
-    case exceptional?(word) do
-      true -> word
-      false ->
+  defp step_1b(word, region1), do: step_1b(word, region1, exceptional?(word))
+  defp step_1b(word, _, exceptional) when exceptional, do: word
+  defp step_1b(word, region1, _) do
+    eed_suffix = %r/(eed|eedly)$/
+    ing_or_ed_suffix = %r/#{vowels}.*(ingly|edly|ing|ed)$/
+
+    cond do
+      word =~ eed_suffix ->
+        [{len,_}|_] = Regex.run(eed_suffix, word, return: :index)
+        [stem,_,_] = Regex.split(eed_suffix, word)
+        if region1 <= len, do: stem <> "ee", else: word
+
+      word =~ ing_or_ed_suffix ->
+        suffix = List.last(Regex.run(ing_or_ed_suffix, word))
+        stem = String.replace(word, %r/#{suffix}$/, "")
         cond do
-          word =~ %r/(eed|eedly)$/ ->
-            [{len,_}|_] = Regex.run(%r/(eed|eedly)$/, word, return: :index)
-            [stem,_,_] = Regex.split(%r/(eed|eedly)$/, word)
-            if region1 <= len do
-              stem <> "ee"
-            else
-              word
-            end
-
-          word =~ %r/#{vowels}.*(ingly|edly|ing|ed)$/ ->
-            suffix = List.last(Regex.run(%r/#{vowels}.*(ingly|edly|ing|ed)$/, word))
-            stem = String.replace(word, %r/#{suffix}$/, "")
-            cond do
-              stem =~ %r/(at|bl|iz)$/ ->
-                stem <> "e"
-              stem =~ %r/(bb|dd|ff|gg|mm|nn|pp|rr|tt)$/ ->
-                String.slice(stem, 0, String.length(stem) - 1)
-              is_short?(stem, region1) ->
-                stem <> "e"
-              true -> stem
-            end
-
-          true -> word
+          stem =~ %r/(bb|dd|ff|gg|mm|nn|pp|rr|tt)$/ ->
+            chop(stem)
+          stem =~ %r/(at|bl|iz)$/ or is_short?(stem, region1) ->
+            stem <> "e"
+          true -> stem
         end
+
+      true -> word
     end
   end
 
@@ -159,7 +154,7 @@ defmodule Stemmer do
 
     case parts do
       ["", stem, ""] -> if region2 <= size(stem), do: stem, else: word
-      [stem, suffix, ""] -> if region2 <= size(stem), do: stem, else: word
+      [stem, _suffix, ""] -> if region2 <= size(stem), do: stem, else: word
       nil -> word
     end
   end
