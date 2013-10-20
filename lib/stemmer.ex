@@ -87,11 +87,10 @@ defmodule Stemmer do
     end
   end
 
-  defp step_1c(word) do
-    case exceptional?(word) do
-      true -> word
-      false -> if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
-    end
+  defp step1c(word), do: step_1c(word, exceptional?(word))
+  defp step1c(word, exceptional) when exceptional, do: word
+  defp step1c(word, _) do
+    if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
   end
 
   defp step_2(word, region1) do
