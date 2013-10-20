@@ -18,15 +18,9 @@ defmodule Stemmer do
     stem word, stem_exception(word)
   end
 
-  defp stem(_, exceptional_stem) when exceptional_stem != nil do
-    exceptional_stem
-  end
-
-  defp stem(word, _) when size(word) <= 2 do
-    word
-  end
-
-  defp stem(word, _) do
+  defp stem(_, exceptional_stem) when exceptional_stem != nil, do: exceptional_stem
+  defp stem(word, nil) when size(word) <= 2, do: word
+  defp stem(word, nil) do
     [r1, r2] = get_regions(word)
 
     word
@@ -37,7 +31,7 @@ defmodule Stemmer do
       |> step_2(r1)
       |> step_3(r1, r2)
       |> step_4(r2)
-      |> step_5a(r1, r2)
+      |> step_5(r1, r2)
   end
 
   ### algorithm steps
@@ -51,7 +45,7 @@ defmodule Stemmer do
       word =~ %r/sses$/ ->
         String.replace(word, %r/sses$/, "ss")
       word =~ %r/ie[sd]$/ ->
-        [head|_] = Regex.split(%r/ie[sd]$/, word)
+        [head | _] = Regex.split(%r/ie[sd]$/, word)
         subst = if size(head) > 1, do: "i", else: "ie"
         String.replace(word, %r/ie[sd]$/, subst)
       word =~ %r/#{vowels}.+s$/ and !(word =~ %r/(us|ss)$/) ->
@@ -68,8 +62,8 @@ defmodule Stemmer do
 
     cond do
       word =~ eed_suffix ->
-        [{len,_}|_] = Regex.run(eed_suffix, word, return: :index)
-        [stem,_,_] = Regex.split(eed_suffix, word)
+        [{len, _} | _] = Regex.run(eed_suffix, word, return: :index)
+        [stem, _, _] = Regex.split(eed_suffix, word)
         if region1 <= len, do: stem <> "ee", else: word
 
       word =~ ing_or_ed_suffix ->
@@ -87,9 +81,9 @@ defmodule Stemmer do
     end
   end
 
-  defp step1c(word), do: step_1c(word, exceptional?(word))
-  defp step1c(word, exceptional) when exceptional, do: word
-  defp step1c(word, _) do
+  defp step_1c(word), do: step_1c(word, exceptional?(word))
+  defp step_1c(word, exceptional) when exceptional, do: word
+  defp step_1c(word, _) do
     if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
   end
 
@@ -152,31 +146,32 @@ defmodule Stemmer do
 
     case parts do
       ["", stem, ""] -> if region2 <= size(stem), do: stem, else: word
-      [stem, _, ""] -> if region2 <= size(stem), do: stem, else: word
+      [stem, _, ""]  -> if region2 <= size(stem), do: stem, else: word
       nil -> word
     end
   end
 
-  defp step_5a(word, region1, region2) do
-    if exceptional?(word), do: word
-
+  defp step_5(word, region1, region2), do: step_5(word, region1, region2, exceptional?(word))
+  defp step_5(word, _, _, exceptional) when exceptional, do: word
+  defp step_5(word, region1, region2, _) do
     suffix1 = %r/e$/
     suffix2 = %r/(.*l)l$/
 
     penultimate = cond do
       word =~ suffix1 ->
+        e_rule = fn(word, stem) ->
+          if region2 <= size(stem) or (region1 <= size(stem) and !is_short?(stem, region1)), do: chop(word), else: word
+        end
         case Regex.split(suffix1, word) do
-          [stem, ""]     -> if region2 <= size(stem) or (region1 <= size(stem) and !is_short?(stem, region1)), do: chop(word), else: word
-          ["", stem, ""] -> if region2 <= size(stem) or (region1 <= size(stem) and !is_short?(stem, region1)), do: chop(word), else: word
-          nil -> word
+          [stem, ""]     -> e_rule.(word, stem)
+          ["", stem, ""] -> e_rule.(word, stem)
+          nil            -> word
         end
 
       word =~ suffix2 ->
         case Regex.run(suffix2, word) do
-          [_,stem] ->
-            if region2 <= size(stem), do: chop(word), else: word
-
-          nil -> word
+          [_, stem] -> if region2 <= size(stem), do: chop(word), else: word
+          nil       -> word
         end
 
       true ->
@@ -198,26 +193,22 @@ defmodule Stemmer do
   end
 
   defp is_short?(word, region1) do
-    region1 >= size(word) && ends_with_short_syllable?(word)
-  end
-
-  defp ends_with_short_syllable?(word) do
-    word =~ %r/((^#{vowels}#{consonants})|(#{consonants}#{vowels}[^aeiouywxY]))$/
+    region1 >= size(word) && word =~ %r/((^#{vowels}#{consonants})|(#{consonants}#{vowels}[^aeiouywxY]))$/
   end
 
   defp get_regions(word) do
     region1 = case Regex.run(%r/^(gener|commun|arsen)/, word, return: :index) do
-      [{_, len}|_] -> len
+      [{_, len} | _] -> len
       nil ->
         case Regex.run(%r/#{vowels}#{consonants}/, word, return: :index) do
-          [{pos, _}|_] -> pos + 2
-          nil          -> size(word)
+          [{pos, _} | _] -> pos + 2
+          nil            -> size(word)
         end
     end
 
     region2 = case Regex.run(%r/.{#{region1}}#{vowels}#{consonants}/, word, return: :index) do
-      [{pos,_}|_] -> pos + region1 + 2
-      nil -> size(word)
+      [{pos, _} | _] -> pos + region1 + 2
+      nil            -> size(word)
     end
 
     [region1, region2]
