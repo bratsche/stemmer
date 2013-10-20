@@ -65,7 +65,7 @@ defmodule Stemmer do
               stem =~ %r/(at|bl|iz)$/ ->
                 stem <> "e"
               stem =~ %r/(bb|dd|ff|gg|mm|nn|pp|rr|tt)$/ ->
-                String.slice(stem, 0, String.length(stem) - 1)
+                chop(stem)
               is_short?(stem, region1) ->
                 stem <> "e"
               true -> stem
