@@ -45,7 +45,7 @@ defmodule Stemmer do
   end
 
   def step_1b(word, region1, region2) do
-    case exceptional?(word) do
+    case is_exceptional?(word) do
       true -> word
       false ->
         cond do
@@ -77,14 +77,14 @@ defmodule Stemmer do
   end
 
   def step_1c(word) do
-    case exceptional?(word) do
+    case is_exceptional?(word) do
       true -> word
       false -> if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
     end
   end
 
   def step_2(word, region1) do
-    case exceptional?(word) do
+    case is_exceptional?(word) do
       true -> word
       false ->
         cond do
@@ -111,7 +111,7 @@ defmodule Stemmer do
   end
 
   def step_3(word, region1, region2) do
-    case exceptional?(word) do
+    case is_exceptional?(word) do
       true -> word
       false ->
         cond do
@@ -130,7 +130,7 @@ defmodule Stemmer do
   end
 
   def step_4(word, region2) do
-    if exceptional?(word), do: word
+    if is_exceptional?(word), do: word
 
     suffix1 = %r/(ement|able|ance|ence|ible|ment|ant|ate|ent|ism|iti|ive|ize|ous|al|er|ic|ou)$/
     suffix2 = %r/(.*[st])ion$/
@@ -149,7 +149,7 @@ defmodule Stemmer do
   end
 
   def step_5a(word, region1, region2) do
-    if exceptional?(word), do: word
+    if is_exceptional?(word), do: word
 
     suffix1 = %r/e$/
     suffix2 = %r/(.*l)l$/
@@ -189,7 +189,7 @@ defmodule Stemmer do
     "[^aeiou]"
   end
 
-  def exceptional?(word) do
+  def is_exceptional?(word) do
     # Should be checked at each step except steps 0 and 1a
     Enum.member?(%w(inning outing canning herring earring proceed exceed succeed), word)
   end
