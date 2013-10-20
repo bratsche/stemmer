@@ -93,30 +93,26 @@ defmodule Stemmer do
     if word =~ %r/.+#{consonants}[yY]$/, do: String.replace(word, %r/[yY]$/, "i"), else: word
   end
 
-  defp step_2(word, region1) do
-    case exceptional?(word) do
-      true -> word
-      false ->
-        cond do
-          word =~ %r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/ ->
-            [stem,suffix, ""] = Regex.split(%r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/, word)
-            if region1 <= size(stem) do
-              stem <> normalize_suffix_1(suffix)
-            else
-              word
-            end
+  defp step_2(word, region1), do: step_2(word, region1, exceptional?(word))
+  defp step_2(word, _, exceptional) when exceptional, do: word
+  defp step_2(word, region1, _) do
+    suffixes = %r/(ational|fulness|iveness|ization|ousness|biliti|lessli|tional|ation|alism|aliti|entli|fulli|iviti|ousli|enci|anci|abli|izer|ator|alli|bli)$/
 
-          word =~ %r/ogi$/ ->
-            [stem,_] = Regex.split(%r/ogi$/, word)
-            if region1 <= size(stem) and stem =~ %r/l$/, do: String.replace(word, %r/ogi$/, 'og'), else: word
+    cond do
+      word =~ suffixes ->
+        [stem, suffix, ""] = Regex.split(suffixes, word)
+        if region1 <= size(stem), do: stem <> normalize_suffix_1(suffix), else: word
 
-          word =~ %r/(.*[cdeghkmnrt])li$/ ->
-            [_,stem] = Regex.run(%r/(.*[cdeghkmnrt])li$/, word)
-            if region1 <= size(stem), do: String.replace(word, %r/li$/, ""), else: word
+      word =~ %r/ogi$/ ->
+        [stem, _] = Regex.split(%r/ogi$/, word)
+        if region1 <= size(stem) and stem =~ %r/l$/, do: String.replace(word, %r/ogi$/, 'og'), else: word
 
-          true ->
-            word
-        end
+      word =~ %r/(.*[cdeghkmnrt])li$/ ->
+        [_, stem] = Regex.run(%r/(.*[cdeghkmnrt])li$/, word)
+        if region1 <= size(stem), do: String.replace(word, %r/li$/, ""), else: word
+
+      true ->
+        word
     end
   end
 
