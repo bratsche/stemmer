@@ -22,7 +22,7 @@ defmodule StemmerTest do
   end
 
   def handle_row(row) do
-    list = Regex.split(%r/ /, row)
+    list = Regex.split(~r{ }, row)
     Enum.filter_map(list, fn(e) -> e != "" end, fn(e) -> String.replace(e, "\n", "") end)
   end
 end
